@@ -1,68 +1,52 @@
 steps:
-# Step 0: Run Django management commands (install deps, collect static, run migrations, run tests)
-- name: 'python:3.11-slim-buster'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - |
-    pip install -r requirements/prod.txt &&
-    python manage.py collectstatic --noinput &&
-    python manage.py makemigrations &&
-    python manage.py migrate &&
-    python manage.py test
-  # Set the production settings module
-  env:
-  - 'DJANGO_SETTINGS_MODULE=config.settings.prod'
+  # Step 1: Run Django commands
+  - name: 'python:3.11-slim-buster'
+    id: 'Run Django Commands'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r requirements/prod.txt &&
+        python manage.py makemigrations &&
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        python manage.py test
 
-# Step 1: Build the Docker image
-- name: 'gcr.io/cloud-builders/docker'
-  args: [
-    'build',
-    '-t', 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest',
-    '-f', 'Dockerfile',
-    '.'
-  ]
+  # Step 2: Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Image'
+    args: ['build', '-t', 'europe-west1-docker.pkg.dev/naebak-app/naebak-repo/naebak-app:latest', '.']
 
-# Step 2: Push the Docker image to Artifact Registry
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest']
+  # Step 3: Push the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Image'
+    args: ['push', 'europe-west1-docker.pkg.dev/naebak-app/naebak-repo/naebak-app:latest']
 
-# Step 3: Deploy to Cloud Run, setting environment variables from Secret Manager
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  entrypoint: 'gcloud'
-  args:
-    - 'run'
-    - 'deploy'
-    - 'naebak-app'
-    - '--image'
-    - 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest'
-    - '--region'
-    - 'europe-west1'
-    - '--platform'
-    - 'managed'
-    - '--allow-unauthenticated'
-    # This is the new, correct way to set secrets based on your prod.py
-    - '--set-secrets'
-    - |
-      SECRET_KEY=django-secret-key:latest,
-      DB_NAME=postgres-db:latest,
-      DB_USER=postgres-user:latest,
-      DB_PASSWORD=db-password:latest,
-      DB_HOST=db-host:latest,
-      DB_PORT=db-port:latest,
-      REDIS_HOST=redis-host:latest,
-      REDIS_PORT=redis-port:latest
+  # Step 4: Deploy to Cloud Run
+  - name: 'google/cloud-sdk:latest'
+    id: 'Deploy to Cloud Run'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'naebak-app'
+      - '--image=europe-west1-docker.pkg.dev/naebak-app/naebak-repo/naebak-app:latest'
+      - '--region=europe-west1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=DJANGO_SETTINGS_MODULE=config.settings.prod'
+      - '--set-secrets=SECRET_KEY=django-secret-key:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest,DB_HOST=db-host:latest,DB_PORT=db-port:latest,REDIS_HOST=redis-host:latest,REDIS_PORT=redis-port:latest'
 
 # Specify the image to be pushed
 images:
-- 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest'
+  - 'europe-west1-docker.pkg.dev/naebak-app/naebak-repo/naebak-app:latest'
 
 # Set a timeout for the build
 timeout: '1200s'
 
-# Set logging options
+# Add build options
 options:
   logging: CLOUD_LOGGING_ONLY
 
 # Specify the service account to use for the build
-serviceAccount: 'projects/naebak-app-433408/serviceAccounts/naebak-build-runner@naebak-app-433408.iam.gserviceaccount.com'
+serviceAccount: 'projects/naebak-app/serviceAccounts/naebak-build-runner@naebak-app.iam.gserviceaccount.com'

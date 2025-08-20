@@ -8,5 +8,5 @@ django-storages
 
 django-redis
 channels-redis
-
+python-decouple==3.8
 

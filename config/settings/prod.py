@@ -1,7 +1,3 @@
-
-"""
-إعدادات Django لبيئة الإنتاج - نسخة نظيفة ومهيأة للعمل على Google Cloud Run
-"""
 from .base import *
 from decouple import config
 import os
@@ -9,25 +5,28 @@ import os
 DEBUG = config("DEBUG", default=False, cast=bool)
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-me")
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https" )
 SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=False, cast=bool)
 
 _default_csrf = "https://*.run.app,https://*.a.run.app"
-CSRF_TRUSTED_ORIGINS = [o for o in config("CSRF_TRUSTED_ORIGINS", default=_default_csrf).split(",") if o]
+CSRF_TRUSTED_ORIGINS = [o for o in config("CSRF_TRUSTED_ORIGINS", default=_default_csrf ).split(",") if o]
 
 CORS_ALLOW_ALL_ORIGINS = config("CORS_ALLOW_ALL_ORIGINS", default=True, cast=bool)
 if not CORS_ALLOW_ALL_ORIGINS:
     CORS_ALLOWED_ORIGINS = [o for o in config("CORS_ALLOWED_ORIGINS", default="").split(",") if o]
 CORS_ALLOW_CREDENTIALS = True
 
+# --- الإعدادات الصحيحة لـ Google Cloud Storage ---
 STATICFILES_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
 DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
 GS_BUCKET_NAME = 'naebak-static-media-files'
-GS_PROJECT_ID = 'stalwart-star-468902-j1'
+GS_PROJECT_ID = 'naebak-app'  # <-- تم التصحيح
 GS_AUTO_CREATE_BUCKET = False
 GS_DEFAULT_ACL = 'publicRead'
-STATIC_URL = 'https://storage.googleapis.com/naebak-static-media-files/static/'
-MEDIA_URL = 'https://storage.googleapis.com/naebak-static-media-files/media/'
+STATIC_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/static/'
+MEDIA_URL = f'https://storage.googleapis.com/{GS_BUCKET_NAME}/media/'
+
+
 
 DATABASES = {
     "default": {
