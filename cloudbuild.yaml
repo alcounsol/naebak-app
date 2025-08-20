@@ -1,0 +1,65 @@
+steps:
+# Step 0: Run Django management commands (install deps, collect static, run migrations, run tests)
+- name: 'python:3.11-slim-buster'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    pip install -r requirements/prod.txt &&
+    python manage.py collectstatic --noinput &&
+    python manage.py makemigrations &&
+    python manage.py migrate &&
+    python manage.py test
+  # Set the production settings module
+  env:
+  - 'DJANGO_SETTINGS_MODULE=config.settings.prod'
+
+# Step 1: Build the Docker image
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-t', 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest',
+    '-f', 'Dockerfile',
+    '.'
+  ]
+
+# Step 2: Push the Docker image to Artifact Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest']
+
+# Step 3: Deploy to Cloud Run, setting environment variables from Secret Manager
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: 'gcloud'
+  args:
+    - 'run'
+    - 'deploy'
+    - 'naebak-app'
+    - '--image'
+    - 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest'
+    - '--region'
+    - 'europe-west1'
+    - '--platform'
+    - 'managed'
+    - '--allow-unauthenticated'
+    # This is the new, correct way to set secrets based on your prod.py
+    - '--set-secrets'
+    - |
+      SECRET_KEY=django-secret-key:latest,
+      DB_NAME=postgres-db:latest,
+      DB_USER=postgres-user:latest,
+      DB_PASSWORD=db-password:latest,
+      DB_HOST=db-host:latest,
+      DB_PORT=db-port:latest,
+      REDIS_HOST=redis-host:latest,
+      REDIS_PORT=redis-port:latest
+
+# Specify the image to be pushed
+images:
+- 'europe-west1-docker.pkg.dev/naebak-app-433408/naebak-repo/naebak-app:latest'
+
+# Set a timeout for the build
+timeout: '1200s'
+
+# Set logging options
+options:
+  logging: CLOUD_LOGGING_ONLY

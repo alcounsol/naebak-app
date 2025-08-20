@@ -1,0 +1,12 @@
+-r base.txt
+
+
+
+django-storages
+
+
+
+django-redis
+channels-redis
+
+
