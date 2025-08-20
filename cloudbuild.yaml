@@ -63,3 +63,6 @@ timeout: '1200s'
 # Set logging options
 options:
   logging: CLOUD_LOGGING_ONLY
+
+# Specify the service account to use for the build
+serviceAccount: 'projects/naebak-app-433408/serviceAccounts/naebak-build-runner@naebak-app-433408.iam.gserviceaccount.com'
